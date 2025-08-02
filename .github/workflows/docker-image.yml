@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   widget-tests:
@@ -16,10 +17,6 @@ jobs:
         image: mongo:6
         ports:
           - 27017:27017
-
-    defaults:
-      run:
-        working-directory: ./widget-service
 
     env:
       MONGO_URL: mongodb://localhost:27017/widgets_test
@@ -35,11 +32,11 @@ jobs:
           node-version: 20
 
       - name: Build weather-service Docker container
-        run: docker build -t weather-service ../weather-service
+        working-directory: ./backend/weather-service
+        run: docker build -t weather-service .
 
       - name: Run weather-service container
-        run: |
-          docker run -d --name weather-api -p 4000:4000 weather-service
+        run: docker run -d --name weather-api -p 4000:4000 weather-service
 
       - name: Wait for weather-service to be ready
         run: |
@@ -51,16 +48,18 @@ jobs:
           done
 
       - name: Install widget-service dependencies
+        working-directory: ./backend/widget-service
         run: npm ci
 
       - name: Run widget-service tests
+        working-directory: ./backend/widget-service
         run: npm run test:coverage
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
         with:
           name: widget-service-coverage
-          path: ./widget-service/coverage
+          path: ./backend/widget-service/coverage
 
       - name: Cleanup containers
         if: always()
