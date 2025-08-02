@@ -1,0 +1,67 @@
+name: Widget Service Tests (with Weather API)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  widget-tests:
+    name: Widget Service with Weather Service (via Docker)
+    runs-on: ubuntu-latest
+
+    services:
+      mongo:
+        image: mongo:6
+        ports:
+          - 27017:27017
+
+    defaults:
+      run:
+        working-directory: ./widget-service
+
+    env:
+      MONGO_URL: mongodb://localhost:27017/widgets_test
+      WEATHER_SERVICE_URL: http://localhost:4000/api
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build weather-service Docker container
+        run: docker build -t weather-service ../weather-service
+
+      - name: Run weather-service container
+        run: |
+          docker run -d --name weather-api -p 4000:4000 weather-service
+
+      - name: Wait for weather-service to be ready
+        run: |
+          echo "Waiting for weather-service to respond..."
+          for i in {1..10}; do
+            curl -sSf http://localhost:4000/api/weather?location=Berlin && break
+            echo "Retrying ($i)..."
+            sleep 3
+          done
+
+      - name: Install widget-service dependencies
+        run: npm ci
+
+      - name: Run widget-service tests
+        run: npm run test:coverage
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: widget-service-coverage
+          path: ./widget-service/coverage
+
+      - name: Cleanup containers
+        if: always()
+        run: docker rm -f weather-api
