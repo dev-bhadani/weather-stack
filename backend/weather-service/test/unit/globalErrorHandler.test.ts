@@ -1,60 +1,68 @@
-import { AppError, globalErrorHandler } from '../../src/handlers/globalErrorHandler';
 import { Request, Response, NextFunction } from 'express';
+import { globalErrorHandler } from '../../src/handlers/globalErrorHandler';
 
 describe('globalErrorHandler', () => {
-    const req = {} as Request;
+    let req: Partial<Request>;
+    let res: Partial<Response>;
+    let next: NextFunction;
 
-    const mockResponse = () => {
-        const res: any = {};
-        res.status = jest.fn().mockReturnValue(res);
-        res.json = jest.fn().mockReturnValue(res);
-        return res as Response;
-    };
-
-    const next = jest.fn() as NextFunction;
-
-    it('should handle AppError with custom status', () => {
-        const res = mockResponse();
-        const err = new AppError('Not found', 404);
-
-        globalErrorHandler(err, req, res, next);
-
-        expect(res.status).toHaveBeenCalledWith(404);
-        expect(res.json).toHaveBeenCalledWith({
-            error: {
-                name: 'AppError',
-                message: 'Not found'
-            }
-        });
+    beforeEach(() => {
+        req = {};
+        res = {
+            status: jest.fn().mockReturnThis(),
+            json: jest.fn(),
+        };
+        next = jest.fn();
     });
 
-    it('should handle generic Error with 500 status', () => {
-        const res = mockResponse();
-        const err = new Error('Something broke');
-
-        globalErrorHandler(err, req, res, next);
+    it('should handle thrown Error objects correctly', () => {
+        const error = new Error('Something went wrong');
+        globalErrorHandler(error, req as Request, res as Response, next);
 
         expect(res.status).toHaveBeenCalledWith(500);
         expect(res.json).toHaveBeenCalledWith({
             error: {
                 name: 'Error',
-                message: 'Something broke'
-            }
+                message: 'Something went wrong',
+            },
         });
     });
 
-    it('should handle thrown non-Error objects gracefully', () => {
-        const res = mockResponse();
-        const err = 'unexpected error' as unknown as Error;
-
-        globalErrorHandler(err, req, res, next);
+    it('should handle thrown non-Error objects gracefully (e.g., string)', () => {
+        globalErrorHandler('Some string error' as any, req as Request, res as Response, next);
 
         expect(res.status).toHaveBeenCalledWith(500);
         expect(res.json).toHaveBeenCalledWith({
             error: {
-                name: undefined,
-                message: undefined
-            }
+                name: 'InternalServerError',
+                message: 'Some string error',
+            },
         });
     });
+
+    it('should handle null error objects gracefully', () => {
+        globalErrorHandler(null as any, req as Request, res as Response, next);
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.json).toHaveBeenCalledWith({
+            error: {
+                name: 'InternalServerError',
+                message: 'An unexpected error occurred',
+            },
+        });
+    });
+
+    it('should handle unstructured object errors (stringify failure)', () => {
+        const circularObj: any = {};
+        circularObj.self = circularObj;
+        globalErrorHandler(circularObj, req as Request, res as Response, next);
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.json).toHaveBeenCalledWith({
+            error: {
+                name: 'InternalServerError',
+                message: 'An unstructured error occurred',
+            },
+        });
+    });
+
+
 });

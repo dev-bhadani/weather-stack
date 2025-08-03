@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { AppError } from "../handlers/globalErrorHandler";
 
 const WEATHER_SERVICE_BASE_URL = process.env.WEATHER_SERVICE_URL || 'http://localhost:4000/api';
 
@@ -9,6 +10,10 @@ export async function fetchWeather(location: string) {
         });
         return response.data;
     } catch (err: any) {
-        throw new Error(`Failed to fetch weather: ${err.message}`);
+        if (axios.isAxiosError(err) && err.response?.status === 400) {
+            throw new AppError('Wrong city name entered. Please check and try again.', 400);
+        }
+        console.error('Weather service error:', err.message);
+        throw new AppError('Weather service unavailable', 500);
     }
 }

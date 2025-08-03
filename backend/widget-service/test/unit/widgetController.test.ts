@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import {Request, Response} from 'express';
 import Widget from '../../src/models/weatherWidget';
 import * as weatherService from '../../src/services/weatherService';
 import {
@@ -7,7 +7,7 @@ import {
     deleteWidgetById,
     getWidgetById
 } from '../../src/controllers/widgetController';
-import { AppError } from '../../src/handlers/globalErrorHandler';
+import {AppError} from '../../src/handlers/globalErrorHandler';
 
 jest.mock('../../src/models/weatherWidget');
 jest.mock('../../src/services/weatherService');
@@ -21,7 +21,7 @@ const mockResponse = () => {
 };
 
 const mockRequest = (params = {}, body = {}): Request =>
-    ({ params, body } as unknown as Request);
+    ({params, body} as unknown as Request);
 
 describe('Widget Controller - Unit Tests', () => {
     const next = jest.fn();
@@ -34,11 +34,11 @@ describe('Widget Controller - Unit Tests', () => {
         it('should return enriched widgets', async () => {
             const req = mockRequest();
             const res = mockResponse();
-            (Widget.find as jest.Mock).mockReturnValue({ lean: () => [{ location: 'Berlin' }] });
-            (weatherService.fetchWeather  as jest.Mock).mockResolvedValue({ temperature: 25 });
+            (Widget.find as jest.Mock).mockReturnValue({lean: () => [{location: 'Berlin'}]});
+            (weatherService.fetchWeather as jest.Mock).mockResolvedValue({temperature: 25});
             await getAllWidgets(req, res, next);
             expect(res.json).toHaveBeenCalledWith([
-                { location: 'Berlin', weather: { temperature: 25 } }
+                {location: 'Berlin', weather: {temperature: 25}}
             ]);
         });
 
@@ -55,13 +55,33 @@ describe('Widget Controller - Unit Tests', () => {
 
     describe('createNewWidget', () => {
         it('should create a new widget', async () => {
-            const req = mockRequest({}, { location: 'Berlin' });
+            const req = mockRequest({}, {location: 'Berlin'});
             const res = mockResponse();
-            (Widget.create as jest.Mock).mockResolvedValue({ _id: '1', location: 'Berlin' });
+            const mockWidget = {
+                _id: '1',
+                location: 'Berlin',
+                createdAt: new Date().toISOString(),
+                toObject: function () {
+                    return {
+                        _id: this._id,
+                        location: this.location,
+                        createdAt: this.createdAt,
+                    };
+                },
+            };
+
+            (Widget.create as jest.Mock).mockResolvedValue(mockWidget);
             await createNewWidget(req, res, next);
             expect(res.status).toHaveBeenCalledWith(201);
-            expect(res.json).toHaveBeenCalledWith({ _id: '1', location: 'Berlin' });
+            expect(res.json).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    _id: '1',
+                    location: 'Berlin',
+                    createdAt: expect.any(String),
+                })
+            );
         });
+
 
         it('should error when location is missing', async () => {
             const req = mockRequest({}, {});
@@ -74,7 +94,7 @@ describe('Widget Controller - Unit Tests', () => {
         });
 
         it('should handle DB error', async () => {
-            const req = mockRequest({}, { location: 'Berlin' });
+            const req = mockRequest({}, {location: 'Berlin'});
             const res = mockResponse();
 
             (Widget.create as jest.Mock).mockRejectedValue(new Error('DB error'));
@@ -86,16 +106,16 @@ describe('Widget Controller - Unit Tests', () => {
 
     describe('deleteWidgetById', () => {
         it('should delete and return 204', async () => {
-            const req = mockRequest({ id: 'abc' });
+            const req = mockRequest({id: 'abc'});
             const res = mockResponse();
-            (Widget.findByIdAndDelete as jest.Mock).mockResolvedValue({ _id: 'abc' });
+            (Widget.findByIdAndDelete as jest.Mock).mockResolvedValue({_id: 'abc'});
             await deleteWidgetById(req, res, next);
             expect(res.status).toHaveBeenCalledWith(204);
             expect(res.end).toHaveBeenCalled();
         });
 
         it('should 404 if not found', async () => {
-            const req = mockRequest({ id: 'abc' });
+            const req = mockRequest({id: 'abc'});
             const res = mockResponse();
             (Widget.findByIdAndDelete as jest.Mock).mockResolvedValue(null);
             await deleteWidgetById(req, res, next);
@@ -105,7 +125,7 @@ describe('Widget Controller - Unit Tests', () => {
         });
 
         it('should handle DB delete error', async () => {
-            const req = mockRequest({ id: 'abc' });
+            const req = mockRequest({id: 'abc'});
             const res = mockResponse();
             (Widget.findByIdAndDelete as jest.Mock).mockRejectedValue(new Error('delete failed'));
             await deleteWidgetById(req, res, next);
@@ -115,25 +135,25 @@ describe('Widget Controller - Unit Tests', () => {
 
     describe('getWidgetById', () => {
         it('should return widget with weather', async () => {
-            const req = mockRequest({ id: 'xyz' });
+            const req = mockRequest({id: 'xyz'});
             const res = mockResponse();
-            (Widget.findById as jest.Mock).mockReturnValue({ lean: () => Promise.resolve({ location: 'Berlin' }) });
-            (weatherService.fetchWeather  as jest.Mock).mockResolvedValue({ temperature: 22 });
+            (Widget.findById as jest.Mock).mockReturnValue({lean: () => Promise.resolve({location: 'Berlin'})});
+            (weatherService.fetchWeather as jest.Mock).mockResolvedValue({temperature: 22});
             await getWidgetById(req, res, next);
-            expect(res.json).toHaveBeenCalledWith({ location: 'Berlin', weather: { temperature: 22 } });
+            expect(res.json).toHaveBeenCalledWith({location: 'Berlin', weather: {temperature: 22}});
         });
 
         it('should 404 if widget not found', async () => {
-            const req = mockRequest({ id: 'xyz' });
+            const req = mockRequest({id: 'xyz'});
             const res = mockResponse();
-            (Widget.findById as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(null) });
+            (Widget.findById as jest.Mock).mockReturnValue({lean: () => Promise.resolve(null)});
             await getWidgetById(req, res, next);
             const err = next.mock.calls[0][0] as AppError;
             expect(err.statusCode).toBe(404);
         });
 
         it('should handle DB error in getWidgetById', async () => {
-            const req = mockRequest({ id: 'bad-id' });
+            const req = mockRequest({id: 'bad-id'});
             const res = mockResponse();
             (Widget.findById as jest.Mock).mockReturnValue({
                 lean: () => Promise.reject(new Error('findById fail')),

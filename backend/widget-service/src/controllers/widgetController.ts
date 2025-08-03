@@ -33,13 +33,21 @@ export const getWidgetById = async (_req: Request, res: Response, next: NextFunc
 export const createNewWidget = async (_req: Request, res: Response, next: NextFunction) => {
     try {
         const { location } = _req.body;
-        if (!location) return next(new AppError('Location is required', 400));
+        if (!location || typeof location !== 'string') {
+            return next(new AppError('Location is required', 400));
+        }
+        const weather = await fetchWeather(location);
         const newWidget = await Widget.create({ location });
-        res.status(201).json(newWidget);
-    } catch (err) {
-        next(err);
+        res.status(201).json({ ...newWidget.toObject(), weather });
+    } catch (err: any) {
+        if (err instanceof AppError) {
+            return next(err);
+        }
+        console.error('Unexpected error creating widget:', err);
+        return next(new AppError('Internal Server Error', 500));
     }
 };
+
 
 export const deleteWidgetById = async (_req: Request, res: Response, next: NextFunction) => {
     try {

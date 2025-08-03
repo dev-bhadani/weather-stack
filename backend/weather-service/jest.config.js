@@ -4,5 +4,8 @@ module.exports = {
   roots: ['<rootDir>/test'],
   moduleFileExtensions: ['ts', 'js'],
   testMatch: ['**/*.test.ts'],
-  coveragePathIgnorePatterns: ['/node_modules/', '/dist/']
+  coveragePathIgnorePatterns: ['/node_modules/', '/dist/'],
+  transform: {
+    '^.+\\.ts$': ['ts-jest', { tsconfig: 'tsconfig.json' }],
+  },
 };

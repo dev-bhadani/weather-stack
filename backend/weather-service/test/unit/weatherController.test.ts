@@ -1,12 +1,11 @@
-import { Request, Response, NextFunction } from 'express';
-import { getWeather } from '../../src/controllers/weatherController';
+import {Request, Response, NextFunction} from 'express';
+import {getWeather} from '../../src/controllers/weatherController';
 import * as weatherService from '../../src/services/weatherFetcher';
-import { AppError } from '../../src/handlers/globalErrorHandler';
 
 jest.mock('../../src/services/weatherFetcher');
 
 describe('weatherController.getWeather', () => {
-    const mockRequest = (query: any): Partial<Request> => ({ query });
+    const mockRequest = (query: any): Partial<Request> => ({query});
 
     const mockResponse = (): Partial<Response> => {
         const res: any = {};
@@ -22,11 +21,14 @@ describe('weatherController.getWeather', () => {
         mockNext = jest.fn();
     });
 
-    it('should return weather data when location is provided', async () => {
-        const weatherData = { temperature: 22 };
-        (weatherService.fetchWeatherWithCache as jest.Mock).mockResolvedValue(weatherData);
+    it('should return weather data when location is provided and valid', async () => {
+        const coords = {latitude: 52.52, longitude: 13.41};
+        const weatherData = {temperature: 22};
 
-        const req = mockRequest({ location: 'Berlin' }) as Request;
+        (weatherService.getCoordinates as jest.Mock).mockResolvedValue(coords);
+        (weatherService.getWeatherData as jest.Mock).mockResolvedValue(weatherData);
+
+        const req = mockRequest({location: 'Berlin'}) as Request;
         const res = mockResponse() as Response;
 
         await getWeather(req, res, mockNext);
@@ -35,31 +37,50 @@ describe('weatherController.getWeather', () => {
         expect(mockNext).not.toHaveBeenCalled();
     });
 
-    it('should call next with 400 AppError if location is missing', async () => {
+    it('should return 400 if location is missing', async () => {
         const req = mockRequest({}) as Request;
         const res = mockResponse() as Response;
 
         await getWeather(req, res, mockNext);
 
-        expect(mockNext).toHaveBeenCalledWith(expect.any(AppError));
-
-        const error = mockNext.mock.calls[0][0] as unknown as AppError;
-        expect(error.message).toBe('Location query is required');
-        expect(error.statusCode).toBe(400);
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({
+            error: {
+                name: 'AppError',
+                message: 'Location query is required',
+            },
+        });
+        expect(mockNext).not.toHaveBeenCalled();
     });
 
-    it('should call next with 500 AppError if weather fetch fails', async () => {
-        (weatherService.fetchWeatherWithCache as jest.Mock).mockRejectedValue(new Error('API error'));
+    it('should return 400 if coordinates are not found', async () => {
+        (weatherService.getCoordinates as jest.Mock).mockResolvedValue(null);
 
-        const req = mockRequest({ location: 'Berlin' }) as Request;
+        const req = mockRequest({location: 'InvalidCity'}) as Request;
         const res = mockResponse() as Response;
 
         await getWeather(req, res, mockNext);
 
-        expect(mockNext).toHaveBeenCalledWith(expect.any(AppError));
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({
+            error: {
+                name: 'AppError',
+                message: 'Wrong city name entered. Please check and try again.',
+            },
+        });
+        expect(mockNext).not.toHaveBeenCalled();
+    });
 
-        const error = mockNext.mock.calls[0][0] as unknown as AppError;
-        expect(error.message).toBe('Failed to fetch weather data');
-        expect(error.statusCode).toBe(500);
+    it('should call next with error if getWeatherData throws', async () => {
+        const coords = {latitude: 52.52, longitude: 13.41};
+        (weatherService.getCoordinates as jest.Mock).mockResolvedValue(coords);
+        (weatherService.getWeatherData as jest.Mock).mockRejectedValue(new Error('API error'));
+
+        const req = mockRequest({location: 'Berlin'}) as Request;
+        const res = mockResponse() as Response;
+
+        await getWeather(req, res, mockNext);
+
+        expect(mockNext).toHaveBeenCalledWith(expect.any(Error));
     });
 });

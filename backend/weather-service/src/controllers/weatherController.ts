@@ -1,21 +1,30 @@
 import { Request, Response, NextFunction } from 'express';
-import { fetchWeatherWithCache } from '../services/weatherFetcher';
-import { AppError } from '../handlers/globalErrorHandler';
+import { getCoordinates, getWeatherData } from '../services/weatherFetcher';
 
-export const getWeather = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-): Promise<void> => {
-    const location = req.query.location as string;
-    if (!location) {
-        return next(new AppError('Location query is required', 400));
-    }
-
+export const getWeather = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const weather = await fetchWeatherWithCache(location);
+        const location = req.query.location as string;
+        if (!location) {
+            return res.status(400).json({
+                error: {
+                    name: 'AppError',
+                    message: 'Location query is required'
+                }
+            });
+        }
+        const coords = await getCoordinates(location);
+        if (!coords) {
+            return res.status(400).json({
+                error: {
+                    name: 'AppError',
+                    message: 'Wrong city name entered. Please check and try again.'
+                }
+            });
+        }
+        const { latitude, longitude } = coords;
+        const weather = await getWeatherData(latitude, longitude);
         res.json(weather);
     } catch (err) {
-        next(new AppError('Failed to fetch weather data', 500));
+        next(err);
     }
 };
