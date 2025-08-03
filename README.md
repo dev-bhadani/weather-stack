@@ -1,90 +1,73 @@
 # 🌦️ WeatherStack App
 
-A full-stack weather widget application built with **Node.js**, **Next.js**, and **MongoDB**, using a modular microservices architecture.
+WeatherStack is a full-stack weather widget application built with Node.js, Express, MongoDB, and Next.js. It allows users to add city-based weather widgets, fetching real-time data using public APIs.
+
+---
+
+## Architecture
+
+### Backend
+
+The backend consists of two microservices:
+
+- **weather-service** (port `4000`): Fetches weather and geolocation data.
+- **widget-service** (port `5000`): Stores user-added widgets in MongoDB and fetches weather data via `weather-service`.
+
+### Frontend
+
+- **frontend** (port `3000`): A Next.js application that allows users to interact with widgets.
+
+---
+
+## Tech Stack
+
+- **Frontend:** Next.js 15, React 19, TailwindCSS
+- **Backend:** Node.js, Express, TypeScript, MongoDB
+- **APIs Used:**
+  - https://api.open-meteo.com/v1/forecast
+  - https://geocoding-api.open-meteo.com/v1/search
+- **DevOps:** Docker, Docker Compose, GitHub Actions
 
 ---
 
 ## Project Structure
 
-```txt
+```
 .
-├── backend
-│   ├── widget-service      # Handles weather widget storage (MongoDB)
-│   └── weather-service     # Microservice for fetching weather & geocoding data
-├── frontend                # Next.js 15 frontend using App Router
+├── backend/
+│   ├── weather-service/
+│   └── widget-service/
+├── frontend/
+├── docker-compose.yml
 └── README.md
 ```
 
 ---
 
-## Backend Architecture
+## Run the App Using Docker Compose
 
-### widget-service (Node.js + Express + MongoDB)
+### Prerequisites
 
-- Stores widget data in a MongoDB collection.
-- Exposes a REST API at `/api/widgets`.
-- Connected to a local or containerized MongoDB (`localhost:27017` by default).
+- Docker: https://www.docker.com/products/docker-desktop
+- Docker Compose: https://docs.docker.com/compose/
 
-#### Run Locally
+### Steps
 
-```bash
-cd backend/widget-service
-npm install
-npm start
-```
-
-### weather-service (Node.js + Express)
-
-- Exposes `GET /weather?city=Berlin` to fetch weather data.
-- Utilizes:
-
-  - [Open Meteo Forecast API](https://api.open-meteo.com/v1/forecast)
-  - [Open Meteo Geocoding API](https://geocoding-api.open-meteo.com/v1/search)
-
-- Runs on **http://localhost:4000**
-
-#### Run Locally
+1. Open terminal at the project root.
+2. Run:
 
 ```bash
-cd backend/weather-service
-npm install
-npm start
+docker-compose up --build
 ```
 
----
+This will spin up:
 
-## Frontend Architecture
+- MongoDB on port `27017`
+- `weather-service` on port `4000`
+- `widget-service` on port `5000`
+- `frontend` on port `3000`
 
-- Built with **Next.js 15** using **App Router**.
-- UI styled with **TailwindCSS**.
-- Icons by **lucide-react**.
-- Shows weather widgets and allows adding widgets by city name.
-
-#### Run Locally
-
-```bash
-cd frontend
-npm install
-npm run dev-frontend
-```
-
-Frontend runs on: **http://localhost:3000**
-
----
-
-## Testing
-
-### Backend
-
-- Backend services are tested with **Jest** and **Supertest**.
-- Unit & integration tests cover routing and MongoDB operations.
-
-Run tests:
-
-```bash
-cd backend/widget-service
-npm test
-```
+3. Access the app at: http://localhost:3000
 
 ---
 
@@ -92,27 +75,9 @@ npm test
 
 CI is configured for the backend using GitHub Actions.
 
-### Workflow
-
-The tests for `widget-service` are automatically run using this workflow:
+Instead of including the full workflow here, you can view and trigger the pipeline manually:
 
 **[Run the CI pipeline on GitHub](https://github.com/dev-bhadani/weather-stack/actions/workflows/docker-image.yml)**
 
-You can click **"Run Workflow"** on that page to trigger the CI pipeline manually.
+Click “Run Workflow” to execute.
 
----
-
-## APIs Used
-
-- **Weather Forecast API**: https://api.open-meteo.com/v1/forecast
-- **Geocoding API**: https://geocoding-api.open-meteo.com/v1/search
-
----
-
-## Technologies Used
-
-- **Frontend**: Next.js, React 19, TailwindCSS, Axios, React Toastify, Lucide Icons
-- **Backend**: Node.js, Express, MongoDB, Mongoose
-- **Testing**: Jest, Supertest
-- **CI**: GitHub Actions
-- **API Providers**: Open-Meteo (Forecast & Geocoding)
