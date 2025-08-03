@@ -1,0 +1,62 @@
+name: Deploy Full Stack with Ngrok
+
+description: Deploy full stack app with Ngrok public access
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: "Duration to keep Ngrok tunnel alive (in seconds)"
+        required: false
+        default: "3600"
+
+jobs:
+  demo:
+    name: Deploy full stack and expose via ngrok
+    runs-on: ubuntu-latest
+
+    env:
+      NGROK_TOKEN: ${{ secrets.NGROK_TOKEN }}
+      NEXT_PUBLIC_WIDGET_API: http://localhost:5000/api
+      NEXT_PUBLIC_WEATHER_API: http://localhost:4000/api
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Compose
+        run: docker-compose -f docker-compose.yml up --build -d
+
+      - name: Install ngrok
+        run: |
+          curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+          sudo apt update && sudo apt install ngrok
+
+      - name: Auth ngrok
+        run: ngrok config add-authtoken "$NGROK_TOKEN"
+
+      - name: Start ngrok tunnel for frontend
+        run: |
+          ngrok http 3000 --log=stdout > ngrok.log &
+          sleep 5
+
+      - name: Extract public URL from ngrok log
+        run: |
+          until grep -q "started tunnel" ngrok.log; do sleep 1; done
+          PUBLIC_URL=$(grep -o 'url=https://[^ ]*' ngrok.log | head -n 1 | cut -d= -f2)
+          echo "Public URL: $PUBLIC_URL"
+          echo "$PUBLIC_URL" > public-url.md
+
+      - name: Upload public URL as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-public-url
+          path: public-url.md
+
+      - name: Keep container running for given duration
+        run: sleep ${{ github.event.inputs.duration }}
+
+      - name: Shutdown containers
+        if: always()
+        run: docker-compose -f docker-compose.yml down
