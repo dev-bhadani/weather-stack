@@ -20,3 +20,7 @@ mongoose.connect(MONGODB_URI)
         console.error('DataBase connection error:', err.message);
         process.exit(1);
     });
+
+app.get('/health', (_req, res) => {
+    res.send('OK');
+});
