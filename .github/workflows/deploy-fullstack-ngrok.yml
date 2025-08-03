@@ -1,6 +1,4 @@
-name: Deploy Full Stack with Ngrok
-
-description: Deploy full stack app with Ngrok public access
+name: Deploy full stack app with Ngrok public access
 
 on:
   workflow_dispatch:
@@ -17,15 +15,13 @@ jobs:
 
     env:
       NGROK_TOKEN: ${{ secrets.NGROK_TOKEN }}
-      NEXT_PUBLIC_WIDGET_API: http://localhost:5000/api
-      NEXT_PUBLIC_WEATHER_API: http://localhost:4000/api
-
+      
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up Docker Compose
-        run: docker compose -f docker-compose.yml up --build -d
+        run: docker compose -f docker-compose.ci.yml up --build -d
 
       - name: Install ngrok
         run: |
@@ -59,4 +55,4 @@ jobs:
 
       - name: Shutdown containers
         if: always()
-        run: docker compose -f docker-compose.yml down
+        run: docker compose -f docker-compose.ci.yml down
