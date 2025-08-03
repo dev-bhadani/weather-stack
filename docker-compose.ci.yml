@@ -1,0 +1,72 @@
+version: '3.9'
+
+services:
+  mongo:
+    image: mongo:6
+    container_name: mongo
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo-data:/data/db
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', 'db.adminCommand("ping")']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  weather-service:
+    build:
+      context: ./backend/weather-service
+    container_name: weather-service
+    ports:
+      - '4000:4000'
+    environment:
+      - PORT=4000
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:4000/health']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  widget-service:
+    build:
+      context: ./backend/widget-service
+    container_name: widget-service
+    ports:
+      - '5000:5000'
+    environment:
+      - PORT=5000
+      - MONGODB_URI=mongodb://mongo:27017/widgets
+      - WEATHER_SERVICE_URL=http://weather-service:4000/api
+    depends_on:
+      mongo:
+        condition: service_healthy
+      weather-service:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:5000/health']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: frontend
+    ports:
+      - '3000:3000'
+    environment:
+      - NEXT_PUBLIC_WIDGET_API=http://widget-service:5000/api
+      - NEXT_PUBLIC_WEATHER_API=http://weather-service:4000/api
+    depends_on:
+      widget-service:
+        condition: service_healthy
+      weather-service:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  mongo-data:
